@@ -12,5 +12,9 @@ To quantify the sound data, MFCC (Mel-scale Frequency Cepstral Coefficients) was
 <img src="https://github.com/TK-CamBaz/Acoustic-classification/blob/main/PCA%20plot.png" width="400">
 
 ### Model training
+Machine learning , as a popular technique in AI, has been introduced to various fields. Here, logistic regression (MLR), decesion tree (DT), random forest (RF), naive bayes (Bayes) and support vector machine (SVM) were selected to build classifiers. 
 
 ### Performance comparison
+Results showed that SVM outperformed other classifiers with accuracy 100% in training, testing and mixed dataset.
+
+<img src="https://github.com/TK-CamBaz/Acoustic-classification/blob/main/model%20performance.png" width="400">
