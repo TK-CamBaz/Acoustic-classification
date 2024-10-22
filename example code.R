@@ -20,7 +20,7 @@ for (i in species){
 
 # Define function to extract MFCC ####
 extract.mfcc <- function(target, show.chirp){
-  path <- paste("D:/Github/Acoustic classification/Acoustic-classification/exampledata", target, sep = '/')
+  path <- paste("D:/R/R_Code/Acoustic analysis/analysis/extract_features", target, sep = '/')
   setwd(path)
   num.file <- length(list.files())
   
