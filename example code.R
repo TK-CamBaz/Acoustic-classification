@@ -1,22 +1,26 @@
-# Species name ####
+# Define species name ####
 species <- c('Gryllodes_sigillatus', 'Homoeoxipha_lycoides', 'Loxoblemmus_appendicularis',
              'Tarbinskiellus_portentosus', 'Teleogryllus_mitratus', 'Teleogryllus_occipitalis')
 
-# plot chirps' sound waves
-par(mfrow = c(3, 2))
+# Check chirps' sound waves by plotting them
+library(seewave)
 library(tuneR)
+
+#par(mfrow = c(3, 2))
 for (i in species){
-  path <- paste("~/exampledata", i, sep = '')
+  path <- paste("D:/Github/Acoustic classification/Acoustic-classification/exampledata", i, sep = '/')# change working dir. 
   setwd(path)
   chirp <- readWave(list.files()[1])
-  plot(chirp)
+  #plot(chirp, ylab = 'amplitude', cex.lab = 1.4) # Only oscillogram
+  spectro(chirp, osc = T, grid = F, scale = F, heights = c(2, 1)) # Both spectrogram and oscillogram
   title(i)
+  # ggspectro(chirp) --> No better results?
 }
-par(mfrow = c(1, 1))
+#par(mfrow = c(1, 1))
 
 # Define function to extract MFCC ####
 extract.mfcc <- function(target, show.chirp){
-  path <- paste("~/exampledata", target, sep = '')
+  path <- paste("D:/Github/Acoustic classification/Acoustic-classification/exampledata", target, sep = '/')
   setwd(path)
   num.file <- length(list.files())
   
@@ -32,8 +36,7 @@ extract.mfcc <- function(target, show.chirp){
   for(i in 1:num.file){
     path <- paste(genus, i, ".wav", sep = '')
     Song <- readWave(file = path)
-    mfcc <- melfcc(Song, numcep = 13, usecmp = F, fbtype = 'mel',
-                   wintime = 0.025)
+    mfcc <- melfcc(Song, numcep = 13, usecmp = F, fbtype = 'mel', wintime = 0.025)
     result <- as.data.frame(rbind(result, mfcc))
   }
   return(result)
@@ -46,40 +49,59 @@ Tarbin <- extract.mfcc(target = 'Tarbinskiellus_portentosus')
 T_mitratus <- extract.mfcc(target = 'Teleogryllus_mitratus')
 T_occ <- extract.mfcc(target = 'Teleogryllus_occipitalis')
 
-# Use PCA to visualize MFCC of data ####
-my.pca <- prcomp(whole.data, center = T, scale. = T)
+whole.data <- rbind(Gryllodes, Homoeoxipha, Loxo_ap,
+                    Tarbin, T_mitratus, T_occ)
 
-library(ggbiplot)
+# Use PCA to visualize MFCC-transformed data ####
+# Define groups for coloring data points
 groups <- c(rep('Gryllodes', nrow(Gryllodes)), rep('Homoeoxipha', nrow(Homoeoxipha)),
             rep('Loxo_ap', nrow(Loxo_ap)), rep('Tarbin', nrow(Tarbin)),
             rep('T_mitratus', nrow(T_mitratus)), rep('T_occ', nrow(T_occ)))
+
+my.pca <- prcomp(whole.data, center = T, scale. = T)
+library(ggbiplot)
 ggbiplot(my.pca, ellipse = T, groups = groups, var.axes = F) +
-  theme_bw() + xlab('PC1') + ylab('PC2')
+  theme_bw() + 
+  labs(title = 'PCA visualization') +
+  xlab('PC1') +
+  ylab('PC2')
+
+# Use t-SNE to visualize data 
+library(Rtsne)
+set.seed(123)
+my.tsne <- Rtsne(whole.data, dims = 2, perplexity = 30, 
+                 verbose = T, max_iter = 1000)
+tsne.df <- data.frame(x = my.tsne$Y[, 1], y = my.tsne$Y[, 2],
+                      groups = groups)
+ggplot(tsne.df, aes(x = x, y = y, col = groups)) +
+  geom_point() +
+  theme_bw() +
+  labs(title = 't-SNE visualization') +
+  xlab('Dimension 1') +
+  ylab('Dimension 2')
+  
 
 # Dataset preparation ####
-label <- factor(as.numeric(gsub("Gryllodes", 1, 
-                                gsub("Homoeoxipha", 2, 
-                                     gsub('Loxo_ap', 3, 
-                                          gsub('Tarbin', 4,
-                                               gsub('T_mitratus', 5, 
-                                                    gsub('T_occ', 6, groups))))))))
+data.num <- as.numeric(table(groups)[1])
+data.class.num <- length(table(groups))
+my.label <- factor(rep(1:data.class.num, each = data.num))
 
-each.num <- nrow(Gryllodes)
-ratio <- 0.8
-train.num <- round(each.num*ratio, 0)
+ratio <- 0.8# Train : Test  = 80% : 20%
+train.num <- round(data.num*ratio, 0)
 train.ind <- c()
 test.ind <- c()
 for (i in 1:length(species)){
-  temp.train.ind <- (each.num*(i - 1) + 1):(each.num*i - each.num*(1 - ratio))
+  temp.train.ind <- (data.num*(i - 1) + 1):(data.num*i - data.num*(1 - ratio))
   train.ind <- c(train.ind, temp.train.ind)
-  temp.test.ind <- (each.num*i - (each.num*(1 - ratio)) + 1):(each.num*i)
+  temp.test.ind <- (data.num*i - (data.num*(1 - ratio)) + 1):(data.num*i)
   test.ind <- c(test.ind, temp.test.ind)
 }
 
+# Dataset splitiing
 train.x <- whole.data[train.ind, ]
-train.y <- label[train.ind]
+train.y <- my.label[train.ind]
 test.x <- whole.data[test.ind, ]
-test.y <- label[test.ind]
+test.y <- my.label[test.ind]
 
 # Build classifiers ####
 # MLR ####
@@ -189,3 +211,6 @@ ggplot(bar.data, aes(fill = condition, y = acc.value, x = my.model)) +
   coord_cartesian(ylim = c(min(bar.data$acc.value),
                            max(bar.data$acc.value))) +
   ggtitle('Model performance')
+
+# Reference 
+# https://rug.mnhn.fr/seewave/
