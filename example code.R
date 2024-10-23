@@ -1,24 +1,22 @@
-# Define species name ####
+# Define species name
 species <- c('Gryllodes_sigillatus', 'Homoeoxipha_lycoides', 'Loxoblemmus_appendicularis',
              'Tarbinskiellus_portentosus', 'Teleogryllus_mitratus', 'Teleogryllus_occipitalis')
 
+# Data inspection ####
 # Check chirps' sound waves by plotting them
 library(seewave)
 library(tuneR)
 
-#par(mfrow = c(3, 2))
 for (i in species){
   path <- paste("D:/Github/Acoustic classification/Acoustic-classification/exampledata", i, sep = '/')# change working dir. 
   setwd(path)
   chirp <- readWave(list.files()[1])
-  #plot(chirp, ylab = 'amplitude', cex.lab = 1.4) # Only oscillogram
-  spectro(chirp, osc = T, grid = F, scale = F, heights = c(2, 1)) # Both spectrogram and oscillogram
+  spectro(chirp, osc = T, grid = F, scale = F, heights = c(2, 1), flim  = c(0, 20)) # Both spectrogram and oscillogram
   title(i)
-  # ggspectro(chirp) --> No better results?
 }
-#par(mfrow = c(1, 1))
 
-# Define function to extract MFCC ####
+# MFCC extraction ####
+# Define function to extract MFCC
 extract.mfcc <- function(target, show.chirp){
   path <- paste("D:/R/R_Code/Acoustic analysis/analysis/extract_features", target, sep = '/')
   setwd(path)
@@ -42,6 +40,7 @@ extract.mfcc <- function(target, show.chirp){
   return(result)
 }
 
+# Extract MFCC of each species
 Gryllodes <- extract.mfcc(target = 'Gryllodes_sigillatus')
 Homoeoxipha <- extract.mfcc(target = 'Homoeoxipha_lycoides')
 Loxo_ap <- extract.mfcc(target = 'Loxoblemmus_appendicularis')
@@ -52,7 +51,7 @@ T_occ <- extract.mfcc(target = 'Teleogryllus_occipitalis')
 whole.data <- rbind(Gryllodes, Homoeoxipha, Loxo_ap,
                     Tarbin, T_mitratus, T_occ)
 
-# Use PCA to visualize MFCC-transformed data ####
+# MFCC visualization ####
 # Define groups for coloring data points
 groups <- c(rep('Gryllodes', nrow(Gryllodes)), rep('Homoeoxipha', nrow(Homoeoxipha)),
             rep('Loxo_ap', nrow(Loxo_ap)), rep('Tarbin', nrow(Tarbin)),
@@ -81,7 +80,7 @@ ggplot(tsne.df, aes(x = x, y = y, col = groups)) +
   ylab('Dimension 2')
   
 
-# Dataset preparation ####
+# Dataset construction ####
 data.num <- as.numeric(table(groups)[1])
 data.class.num <- length(table(groups))
 my.label <- factor(rep(1:data.class.num, each = data.num))
@@ -103,9 +102,8 @@ train.y <- my.label[train.ind]
 test.x <- whole.data[test.ind, ]
 test.y <- my.label[test.ind]
 
-# Build classifiers ####
-# MLR ####
-# Multinomial logistic regression #
+# Model training ####
+# Multinomial Logistic Regression (MLR)
 data.mlr.dt <- data.frame(train.x, train.y)
 col.label <- c('cep.1', 'cep.2', 'cep.3', 'cep.4', 'cep.5', 'cep.6',
                'cep.7', 'cep.8', 'cep.9', 'cep.10', 'cep.11', 'cep.12',
@@ -129,7 +127,7 @@ test.acc.mlr <- sum(diag(test.cm.mlr))/sum(test.cm.mlr)
 all.acc.mlr <- (sum(diag(train.cm.mlr)) + sum(diag(test.cm.mlr)))/(sum(train.cm.mlr) + sum(test.cm.mlr))
 
 
-# DT ####
+# Decision Tree (DT)
 library(rpart)
 fit.dt <- rpart(species ~. , data = data.mlr.dt)
 
@@ -141,7 +139,7 @@ train.acc.dt <- sum(diag(train.cm.dt))/sum(train.cm.dt)
 test.acc.dt <- sum(diag(test.cm.dt))/sum(test.cm.dt)
 all.acc.dt <- (sum(diag(train.cm.dt)) + sum(diag(test.cm.dt)))/(sum(train.cm.dt) + sum(test.cm.dt))
 
-# Random Forest ####
+# Random Forest (RF)
 library(caret)
 control <- trainControl(method = "repeatedcv", number = 10, repeats = 3, 
                         search="random")
@@ -157,7 +155,7 @@ train.acc.rf <- sum(diag(train.cm.rf))/sum(train.cm.rf)
 test.acc.rf <- sum(diag(test.cm.rf))/sum(test.cm.rf)
 all.acc.rf <- (sum(diag(train.cm.rf)) + sum(diag(test.cm.rf)))/(sum(train.cm.rf) + sum(test.cm.rf))
 
-# SVM ####
+# Support Vector Machine (SVM)
 library(e1071)
 tune.svm <- tune(svm, 
                  train.x = train.x,
@@ -175,7 +173,7 @@ train.acc.svm <- sum(diag(train.cm.svm))/sum(train.cm.svm)
 test.acc.svm <- sum(diag(test.cm.svm))/sum(test.cm.svm)
 all.acc.svm <- (sum(diag(train.cm.svm)) + sum(diag(test.cm.svm)))/(sum(train.cm.svm) + sum(test.cm.svm))
 
-# Bayes ####
+# Naive Bayes Classifier (NB)
 library(caret)
 tune.bayes <- train(train.x, train.y, 'nb', 
                     trControl = trainControl(method = 'cv', number = 10))
@@ -190,7 +188,7 @@ test.acc.bayes <- sum(diag(test.cm.bayes))/sum(test.cm.bayes)
 all.acc.bayes <- (sum(diag(train.cm.bayes)) + sum(diag(test.cm.bayes)))/(sum(train.cm.bayes) + sum(test.cm.bayes))
 
 
-# Performance comparison ####
+# Performance Evaluation ####
 my.model <- c(rep("MLR", 3), rep("DT", 3), rep("RF", 3),
               rep("Bayes", 3), rep("SVM", 3))
 condition <- rep(c("Train" , "Test" , "All") , 5)
@@ -211,6 +209,3 @@ ggplot(bar.data, aes(fill = condition, y = acc.value, x = my.model)) +
   coord_cartesian(ylim = c(min(bar.data$acc.value),
                            max(bar.data$acc.value))) +
   ggtitle('Model performance')
-
-# Reference 
-# https://rug.mnhn.fr/seewave/
