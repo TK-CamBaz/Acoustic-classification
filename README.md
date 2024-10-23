@@ -24,7 +24,7 @@ Machine learning , as a popular technique in AI, has been introduced to various 
 ## Performance evaluation
 Results showed that SVM outperformed other classifiers with accuracy 100% in training, testing and mixed dataset. Based on this experiment, SVM and RF are suggested as recommended models.
 
-<img src="https://github.com/TK-CamBaz/Acoustic-classification/blob/main/contents/model_performance.png" width="400">
+<img src="https://github.com/TK-CamBaz/Acoustic-classification/blob/main/contents/Model_performance.png" width="400">
 
 ## Reference
 https://www.wildlifeacoustics.com/resources/blog/oscillogram-vs-spectrogram-understanding-basic-sound-visualization-in-bioacoustics-research  
